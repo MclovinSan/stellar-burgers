@@ -1,16 +1,18 @@
 import { ProfileUI } from '@ui-pages';
+import { getUpdateUserError, getUser } from '@selectors';
+import { updateUser } from '@slices/userSlice';
+import { Preloader } from '@ui';
 import { FC, SyntheticEvent, useEffect, useState } from 'react';
+import { useDispatch, useSelector } from '../../services/store';
 
 export const Profile: FC = () => {
-  /** TODO: взять переменную из стора */
-  const user = {
-    name: '',
-    email: ''
-  };
+  const dispatch = useDispatch();
+  const user = useSelector(getUser);
+  const updateUserError = useSelector(getUpdateUserError);
 
   const [formValue, setFormValue] = useState({
-    name: user.name,
-    email: user.email,
+    name: user?.name || '',
+    email: user?.email || '',
     password: ''
   });
 
@@ -18,17 +20,30 @@ export const Profile: FC = () => {
     setFormValue((prevState) => ({
       ...prevState,
       name: user?.name || '',
-      email: user?.email || ''
+      email: user?.email || '',
+      password: ''
     }));
   }, [user]);
 
+  if (!user) {
+    return <Preloader />;
+  }
+
   const isFormChanged =
-    formValue.name !== user?.name ||
-    formValue.email !== user?.email ||
+    formValue.name !== user.name ||
+    formValue.email !== user.email ||
     !!formValue.password;
 
   const handleSubmit = (e: SyntheticEvent) => {
     e.preventDefault();
+
+    const changedUserData = {
+      ...(formValue.name !== user.name ? { name: formValue.name } : {}),
+      ...(formValue.email !== user.email ? { email: formValue.email } : {}),
+      ...(formValue.password ? { password: formValue.password } : {})
+    };
+
+    dispatch(updateUser(changedUserData));
   };
 
   const handleCancel = (e: SyntheticEvent) => {
@@ -51,11 +66,10 @@ export const Profile: FC = () => {
     <ProfileUI
       formValue={formValue}
       isFormChanged={isFormChanged}
+      updateUserError={updateUserError || undefined}
       handleCancel={handleCancel}
       handleSubmit={handleSubmit}
       handleInputChange={handleInputChange}
     />
   );
-
-  return null;
 };

@@ -1,25 +1,50 @@
-import { FC, useMemo } from 'react';
+import { FC, useEffect, useMemo, useState } from 'react';
+import { useParams } from 'react-router-dom';
+
+import {
+  getCurrentOrder,
+  getFeedOrders,
+  getIngredients,
+  getOrderLoading,
+  getProfileOrders
+} from '@selectors';
+import { fetchOrderByNumber } from '@slices/ordersSlice';
+import { TIngredient } from '@utils-types';
+import { useDispatch, useSelector } from '../../services/store';
 import { Preloader } from '../ui/preloader';
 import { OrderInfoUI } from '../ui/order-info';
-import { TIngredient } from '@utils-types';
 
 export const OrderInfo: FC = () => {
-  /** TODO: взять переменные orderData и ingredients из стора */
-  const orderData = {
-    createdAt: '',
-    ingredients: [],
-    _id: '',
-    status: '',
-    name: '',
-    updatedAt: 'string',
-    number: 0
-  };
+  const { number } = useParams();
+  const orderNumber = Number(number);
+  const dispatch = useDispatch();
+  const ingredients = useSelector(getIngredients);
+  const feedOrders = useSelector(getFeedOrders);
+  const profileOrders = useSelector(getProfileOrders);
+  const currentOrder = useSelector(getCurrentOrder);
+  const isOrderLoading = useSelector(getOrderLoading);
+  const [requestedNumber, setRequestedNumber] = useState<number | null>(null);
 
-  const ingredients: TIngredient[] = [];
+  const orderData =
+    feedOrders.find((order) => order.number === orderNumber) ||
+    profileOrders.find((order) => order.number === orderNumber) ||
+    (currentOrder?.number === orderNumber ? currentOrder : null);
 
-  /* Готовим данные для отображения */
+  useEffect(() => {
+    if (
+      !Number.isNaN(orderNumber) &&
+      !orderData &&
+      requestedNumber !== orderNumber
+    ) {
+      setRequestedNumber(orderNumber);
+      dispatch(fetchOrderByNumber(orderNumber));
+    }
+  }, [dispatch, orderData, orderNumber, requestedNumber]);
+
   const orderInfo = useMemo(() => {
-    if (!orderData || !ingredients.length) return null;
+    if (!orderData || !ingredients.length) {
+      return null;
+    }
 
     const date = new Date(orderData.createdAt);
 
@@ -59,7 +84,21 @@ export const OrderInfo: FC = () => {
     };
   }, [orderData, ingredients]);
 
+  if (Number.isNaN(orderNumber)) {
+    return <p className='text text_type_main-medium pt-10'>Заказ не найден</p>;
+  }
+
   if (!orderInfo) {
+    if (
+      requestedNumber === orderNumber &&
+      !isOrderLoading &&
+      orderData === null
+    ) {
+      return (
+        <p className='text text_type_main-medium pt-10'>Заказ не найден</p>
+      );
+    }
+
     return <Preloader />;
   }
 
